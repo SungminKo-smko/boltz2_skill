@@ -35,6 +35,15 @@ claude mcp list 2>/dev/null | grep boltz2 || echo "NOT_REGISTERED"
 claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp
 ```
 
+> **OAuth 2.1 인증**: HTTP 전송 모드를 사용하면 첫 연결 시 브라우저가 열리며 Google OAuth 로그인이 진행됩니다. `@shaperon.com` 계정으로 로그인하면 인증이 자동 완료됩니다.
+
+> **원격 환경 (SSH, Codespaces 등)**: 브라우저를 직접 열 수 없는 환경에서는 `--callback-port 9999`를 추가하고, 해당 포트를 로컬로 포워딩하세요:
+> ```bash
+> claude mcp add boltz2 --transport http \
+>   https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp \
+>   --callback-port 9999
+> ```
+
 또는 로컬 stdio 모드 (개발용):
 ```bash
 cd ~/workspace/boltz2_MSA && source .venv/bin/activate
@@ -94,7 +103,7 @@ echo "BOLTZ2_API_KEY=${BOLTZ2_API_KEY}"
 
 **모드 B 필수:**
 1. 구조 파일 경로 (.cif 또는 .pdb)
-2. 추가 entity (선택 — 단백질 시퀀스, 리간드 SMILES 등)
+2. 추가 sequence (선택 — 단백질 시퀀스, 리간드 SMILES 등)
 
 **모드 C 필수:**
 1. 나노바디 시퀀스
@@ -146,8 +155,8 @@ YAML spec을 직접 생성하여 검증 + 제출:
 
 ```python
 validate_spec(
-    raw_yaml="""version: 2
-entities:
+    raw_yaml="""version: 1
+sequences:
   - protein:
       id: A
       sequence: <시퀀스1>
@@ -184,7 +193,7 @@ submit_job(
 ```python
 render_template(
     target_asset_id="<asset_id>",
-    additional_entities=[
+    additional_sequences=[
         {"protein": {"id": "B", "sequence": "<추가 시퀀스>"}},
         # {"ligand": {"id": "L", "smiles": "CCO"}}  # 리간드 추가 시
     ],
@@ -283,11 +292,11 @@ list_workers(api_key="<key>")                 # 워커 상태
 
 ## Boltz-2 YAML Spec 레퍼런스
 
-### 기본 구조 (v2)
+### 기본 구조 (v1)
 
 ```yaml
-version: 2
-entities:
+version: 1
+sequences:
   - protein:
       id: A
       sequence: MKTL...
@@ -347,6 +356,15 @@ constraints:
 | `output_format` | mmcif | pdb/mmcif | 출력 형식 |
 | `use_msa_server` | true | - | MSA 서버 사용 여부 |
 | `use_potentials` | false | - | 에너지 기반 가이드 |
+
+## BoltzGen 통합 (Cross-Service)
+
+boltz2와 boltzgen은 동일한 Supabase 인증 시스템(nanomapAIDEN 프로젝트)을 공유한다.
+boltz2 API KEY를 이미 발급받은 사용자는 동일한 로그인(`/auth/login`, `/auth/callback`, `/auth/device-code`)으로 boltzgen용 KEY도 별도 발급받을 수 있다.
+
+- 두 서비스 모두 `b2_` 접두사를 사용하지만 KEY는 서비스별로 분리됨
+- **boltz2 KEY는 boltz2에서만, boltzgen KEY는 boltzgen에서만 유효**
+- 인증 엔드포인트 패턴은 동일: `/auth/login`, `/auth/callback`, `/auth/device-code`
 
 ## 오류 처리
 
