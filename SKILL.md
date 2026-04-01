@@ -50,7 +50,25 @@ cd ~/workspace/boltz2_MSA && source .venv/bin/activate
 claude mcp add boltz2 python3 -m boltz2_service.mcp.stdio
 ```
 
-## Step 0: API KEY 로드
+## Step 0: 인증 확인
+
+> **OAuth 2.1 자동 인증 (기본)**: MCP 서버가 `--transport http` (streamable-http)로 등록되어 있으면 OAuth 2.1 토큰이 자동으로 관리됩니다. **별도의 `api_key` 파라미터 없이** 모든 도구를 즉시 사용할 수 있습니다.
+
+MCP가 HTTP 모드로 등록되어 있는지 확인:
+
+```bash
+claude mcp list 2>/dev/null | grep boltz2 || echo "NOT_REGISTERED"
+```
+
+- **HTTP 모드로 등록됨** → 인증 완료. `api_key` 파라미터 생략 가능. **Step 1로 바로 이동.**
+- **NOT_REGISTERED** → 아래 명령으로 등록:
+  ```bash
+  claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp
+  ```
+
+### Fallback: .env 파일의 API_KEY (선택사항)
+
+OAuth를 사용할 수 없는 환경(로컬 stdio 모드 등)에서만 필요합니다.
 
 ```bash
 SKILL_ENV="$HOME/.claude/skills/boltz2-predict/.env"
@@ -61,29 +79,12 @@ if [ -f "$SKILL_ENV" ]; then
 fi
 
 [ -z "$BOLTZ2_API_KEY" ] && BOLTZ2_API_KEY="${BOLTZ2_API_KEY:-${API_KEY:-}}"
-
-echo "BOLTZ2_API_KEY=${BOLTZ2_API_KEY}"
 ```
 
-- **값이 있으면** → 그 값을 모든 tool 호출의 `api_key` 인수로 전달
-- **값이 없으면** → MCP OAuth로 자동 발급 시도:
-
-  1. MCP boltz2 서버가 등록되어 있으면 `get_my_api_key()` 호출:
-     ```python
-     get_my_api_key()
-     # → { "api_key": "b2_xxx...", "email": "...", "save_hint": "..." }
-     ```
-
-  2. 반환된 `api_key`를 로컬에 저장:
-     ```bash
-     mkdir -p "$HOME/.claude/skills/boltz2-predict"
-     echo "API_KEY=<반환된 api_key>" > "$HOME/.claude/skills/boltz2-predict/.env"
-     ```
-
-  3. MCP가 미등록이거나 인증 실패 시 수동 발급 안내:
-     > "Boltz-2 API KEY를 발급받으려면 MCP 서버를 먼저 등록하세요:
-     > `claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp`
-     > 또는 웹에서 직접 발급: https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/auth/login"
+- **값이 있으면** → tool 호출 시 `api_key` 인수로 전달
+- **값이 없고 stdio 모드** → `get_my_api_key()` 호출로 발급 시도 후 `.env`에 저장
+- **MCP 미등록** → HTTP 모드 등록을 권장:
+  > `claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp`
 
 ## Step 1: 입력 모드 판별
 
@@ -144,8 +145,8 @@ fi
 
 ```python
 create_upload_url(
-    filename="<파일명>",
-    api_key="<BOLTZ2_API_KEY>"
+    filename="<파일명>"
+    # api_key="<BOLTZ2_API_KEY>"  # OAuth 연결 시 생략 가능
 )
 # → asset_id, upload_url, content_type, curl_hint
 ```
@@ -174,8 +175,8 @@ sequences:
       id: B
       sequence: <시퀀스2>
 """,
-    asset_ids=[],
-    api_key="<BOLTZ2_API_KEY>"
+    asset_ids=[]
+    # api_key="<BOLTZ2_API_KEY>"  # OAuth 연결 시 생략 가능
 )
 # → spec_id (valid=True 일 때)
 ```
@@ -186,8 +187,8 @@ sequences:
 submit_job(
     spec_id="<spec_id>",
     prediction_type="structure",
-    diffusion_samples=1,
-    api_key="<BOLTZ2_API_KEY>"
+    diffusion_samples=1
+    # api_key="<BOLTZ2_API_KEY>"  # OAuth 연결 시 생략 가능
 )
 # → job_id
 ```
@@ -207,8 +208,8 @@ render_template(
         {"protein": {"id": "B", "sequence": "<추가 시퀀스>"}},
         # {"ligand": {"id": "L", "smiles": "CCO"}}  # 리간드 추가 시
     ],
-    constraints=[],  # 선택
-    api_key="<BOLTZ2_API_KEY>"
+    constraints=[]  # 선택
+    # api_key="<BOLTZ2_API_KEY>"  # OAuth 연결 시 생략 가능
 )
 # → spec_id, canonical_yaml
 ```
@@ -218,8 +219,8 @@ render_template(
 ```python
 validate_spec(
     raw_yaml="<yaml 문자열>",
-    asset_ids=["<asset_id>"],
-    api_key="<BOLTZ2_API_KEY>"
+    asset_ids=["<asset_id>"]
+    # api_key="<BOLTZ2_API_KEY>"  # OAuth 연결 시 생략 가능
 )
 ```
 
@@ -235,8 +236,8 @@ submit_nanobody_structure_prediction(
     target_asset_id="<타겟 asset_id>",
     nanobody_chain_id="N",
     prediction_type="structure",
-    diffusion_samples=1,
-    api_key="<BOLTZ2_API_KEY>"
+    diffusion_samples=1
+    # api_key="<BOLTZ2_API_KEY>"  # OAuth 연결 시 생략 가능
 )
 # → job_id, spec_id, status, spec_yaml
 ```
@@ -248,10 +249,8 @@ submit_nanobody_structure_prediction(
 잡 제출 후 바로 상태를 확인하고, running 상태이면 정보를 출력한다:
 
 ```python
-get_job(
-    job_id="<job_id>",
-    api_key="<BOLTZ2_API_KEY>"
-)
+get_job(job_id="<job_id>")
+# api_key는 OAuth 연결 시 생략 가능
 ```
 
 **출력 예시:**
@@ -261,8 +260,8 @@ get_job(
 - Status: queued → running 대기 중
 - 예상 소요시간: 구조 크기에 따라 10분~4시간
 
-상태 확인: get_job(job_id="abc-123-def", ...)
-결과 다운로드: get_artifacts(job_id="abc-123-def", ...) (succeeded 후)
+상태 확인: get_job(job_id="abc-123-def")
+결과 다운로드: get_artifacts(job_id="abc-123-def") (succeeded 후)
 ```
 
 ## Step 5: 결과 확인 및 다운로드
@@ -270,14 +269,16 @@ get_job(
 사용자가 결과를 요청하면:
 
 ```python
-get_job(job_id="<job_id>", api_key="<BOLTZ2_API_KEY>")
+get_job(job_id="<job_id>")
+# api_key는 OAuth 연결 시 생략 가능
 ```
 
 - `status == "succeeded"` 이면:
 
 ```python
-get_artifacts(job_id="<job_id>", api_key="<BOLTZ2_API_KEY>")
+get_artifacts(job_id="<job_id>")
 # → artifacts: {filename: download_url, ...}
+# api_key는 OAuth 연결 시 생략 가능
 ```
 
 다운로드 URL을 사용자에게 제공하거나, Bash로 다운로드:
@@ -292,12 +293,13 @@ curl -o results.zip "<download_url>"
 ## 잡 관리 도구
 
 ```python
-get_job(job_id, api_key="<key>")               # 상태 확인
-get_logs(job_id, tail=100, api_key="<key>")    # 진행 상황 + 로그
-list_jobs(status="running", api_key="<key>")   # 잡 목록
-cancel_job(job_id, api_key="<key>")            # 잡 취소
-list_templates(api_key="<key>")               # 템플릿 목록
-list_workers(api_key="<key>")                 # 워커 상태
+# OAuth 연결 시 api_key 생략 가능 (모든 도구 공통)
+get_job(job_id)                               # 상태 확인
+get_logs(job_id, tail=100)                    # 진행 상황 + 로그
+list_jobs(status="running")                   # 잡 목록
+cancel_job(job_id)                            # 잡 취소
+list_templates()                              # 템플릿 목록
+list_workers()                                # 워커 상태
 ```
 
 ## Boltz-2 YAML Spec 레퍼런스
@@ -379,7 +381,8 @@ boltz2 API KEY를 이미 발급받은 사용자는 동일한 로그인(`/auth/lo
 
 ## 오류 처리
 
-- **API_KEY 미설정**: `~/.claude/skills/boltz2-predict/.env`에 `API_KEY=<key>` 추가
+- **인증 실패 (OAuth)**: MCP가 HTTP 모드로 등록되어 있는지 확인. 브라우저 OAuth 로그인 재시도.
+- **API_KEY 미설정 (fallback)**: OAuth를 사용할 수 없는 환경에서만 해당. `~/.claude/skills/boltz2-predict/.env`에 `API_KEY=<key>` 추가
 - **MCP 미등록**: `claude mcp add boltz2 --transport http <URL>` 실행
 - **503 boltz2 binary not available**: 서버에 boltz 바이너리가 설치되지 않음. 검증 불가.
 - **401 인증 실패**: API KEY 확인
