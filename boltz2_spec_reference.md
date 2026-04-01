@@ -1,15 +1,15 @@
 # Boltz-2 Spec YAML Reference
 
 > Source: https://github.com/jwohlwend/boltz
-> Boltz-2 v2 YAML specification format
+> Boltz-2 v1 YAML specification format
 
 ---
 
 ## 기본 구조
 
 ```yaml
-version: 2
-entities:
+version: 1
+sequences:
   - protein: ...     # 단백질 체인
   - cif: ...         # 기존 구조 파일
   - ligand: ...      # 소분자 리간드
@@ -19,7 +19,7 @@ constraints:         # (선택) 구조 제약
 
 ---
 
-## Entities
+## Sequences
 
 ### protein — 단백질 시퀀스
 
@@ -31,8 +31,8 @@ constraints:         # (선택) 구조 제약
 
 **다중 체인 예시:**
 ```yaml
-version: 2
-entities:
+version: 1
+sequences:
   - protein:
       id: A
       sequence: MKTLLILAVLCLGFASS...
@@ -87,8 +87,8 @@ constraints:
 ## 예시: 나노바디-타겟 복합체
 
 ```yaml
-version: 2
-entities:
+version: 1
+sequences:
   - cif:
       path: targets/target.cif
   - protein:
@@ -99,8 +99,8 @@ entities:
 ## 예시: 두 단백질 복합체
 
 ```yaml
-version: 2
-entities:
+version: 1
+sequences:
   - protein:
       id: A
       sequence: MKTLLILAVLCLGFASS...
@@ -112,8 +112,8 @@ entities:
 ## 예시: 단백질 + 리간드
 
 ```yaml
-version: 2
-entities:
+version: 1
+sequences:
   - protein:
       id: A
       sequence: MKTLLILAVLCLGFASS...
@@ -137,7 +137,7 @@ entities:
 
 | 파라미터 | 기본 | 범위 | 설명 |
 |----------|------|------|------|
-| `diffusion_samples` | 1 | 1-10 | 구조 샘플 수 (다양성↑) |
+| `diffusion_samples` | 1 | 1-10 | 구조 샘플 수 (다양성) |
 | `sampling_steps` | 200 | 50-1000 | 디퓨전 샘플링 스텝 수 |
 | `recycling_steps` | 3 | 1-10 | 구조 리파인먼트 반복 |
 | `step_scale` | - | 0.5-3.0 | 스텝 스케일 팩터 |

@@ -66,14 +66,24 @@ echo "BOLTZ2_API_KEY=${BOLTZ2_API_KEY}"
 ```
 
 - **값이 있으면** → 그 값을 모든 tool 호출의 `api_key` 인수로 전달
-- **값이 없으면** → 사용자에게 직접 입력 요청:
-  > "Boltz-2 API KEY를 입력해 주세요. (https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/auth/login 에서 발급)"
+- **값이 없으면** → MCP OAuth로 자동 발급 시도:
 
-  입력받은 키를 저장:
-  ```bash
-  mkdir -p "$HOME/.claude/skills/boltz2-predict"
-  echo "API_KEY=<입력받은값>" > "$HOME/.claude/skills/boltz2-predict/.env"
-  ```
+  1. MCP boltz2 서버가 등록되어 있으면 `get_my_api_key()` 호출:
+     ```python
+     get_my_api_key()
+     # → { "api_key": "b2_xxx...", "email": "...", "save_hint": "..." }
+     ```
+
+  2. 반환된 `api_key`를 로컬에 저장:
+     ```bash
+     mkdir -p "$HOME/.claude/skills/boltz2-predict"
+     echo "API_KEY=<반환된 api_key>" > "$HOME/.claude/skills/boltz2-predict/.env"
+     ```
+
+  3. MCP가 미등록이거나 인증 실패 시 수동 발급 안내:
+     > "Boltz-2 API KEY를 발급받으려면 MCP 서버를 먼저 등록하세요:
+     > `claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp`
+     > 또는 웹에서 직접 발급: https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/auth/login"
 
 ## Step 1: 입력 모드 판별
 
@@ -111,7 +121,7 @@ echo "BOLTZ2_API_KEY=${BOLTZ2_API_KEY}"
 
 **공통 선택:**
 - `prediction_type` — structure (기본), affinity, structure+affinity
-- `diffusion_samples` — 기본 1 (1-10)
+- `diffusion_samples` — 기본 1 (1-1000, 100 이상은 앙상블 예측용)
 - `output_format` — mmcif (기본) 또는 pdb
 
 ## Step 2: 구조 파일 업로드 (모드 B, C만)
@@ -350,7 +360,8 @@ constraints:
 
 | 파라미터 | 기본값 | 범위 | 설명 |
 |----------|--------|------|------|
-| `diffusion_samples` | 1 | 1-10 | 디퓨전 샘플 수 (많을수록 다양한 구조) |
+| `diffusion_samples` | 1 | 1-1000 | 디퓨전 샘플 수 (많을수록 다양한 구조, 100+ 앙상블) |
+| `max_parallel_samples` | 5 | 1-100 | GPU에서 동시 처리할 샘플 수 (OOM 시 낮춤) |
 | `sampling_steps` | 200 | 50-1000 | 샘플링 스텝 |
 | `recycling_steps` | 3 | 1-10 | 리사이클링 스텝 |
 | `output_format` | mmcif | pdb/mmcif | 출력 형식 |
