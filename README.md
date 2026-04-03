@@ -44,21 +44,6 @@ Streamable HTTP 전송을 사용하는 원격 MCP 서버에 연결합니다. 처
 claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp
 ```
 
-**원격 환경 (SSH, Codespaces, Dev Container 등):**
-
-브라우저를 직접 열 수 없는 원격 환경에서는 `--callback-port`를 지정하여 OAuth 콜백을 받을 포트를 고정합니다. 해당 포트를 로컬로 포트 포워딩한 뒤 연결하세요.
-
-```bash
-claude mcp add boltz2 --transport http \
-  https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp \
-  --callback-port 9999
-```
-
-포트 포워딩 예시 (별도 터미널):
-```bash
-ssh -L 9999:localhost:9999 your-remote-host
-```
-
 ### Local stdio 모드 (개발용)
 
 로컬에 Boltz-2 서비스가 설치된 경우 stdio 모드로 직접 실행할 수 있습니다.
@@ -213,8 +198,31 @@ Base URL: `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io`
 | `GET` | `/v1/boltz2/prediction-jobs/{id}` | 잡 상세 정보 |
 | `POST` | `/v1/boltz2/prediction-jobs/{id}:cancel` | 잡 취소 |
 | `GET` | `/v1/boltz2/prediction-jobs/{id}/artifacts` | 결과 파일 다운로드 |
+| `GET` | `/v1/boltz2/prediction-jobs/{id}/logs/public` | 공개 로그 스트리밍 (인증 불필요) |
+| `GET` | `/v1/boltz2/prediction-jobs/{id}/logs/public/text` | 공개 로그 텍스트 (인증 불필요) |
+| `GET` | `/v1/boltz2/prediction-jobs/{id}/status/public` | 공개 상태 조회 (인증 불필요) |
 | `GET` | `/docs` | Swagger UI (API 문서) |
 | `GET/POST` | `/mcp/mcp` | MCP Streamable HTTP 엔드포인트 |
+
+---
+
+## 공개 URL (인증 불필요)
+
+잡 상태와 로그를 인증 없이 확인할 수 있는 공개 엔드포인트입니다. 브라우저에서 직접 열거나 외부 공유 시 활용하세요.
+
+| 용도 | URL |
+|------|-----|
+| 로그 스트리밍 | `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/v1/boltz2/prediction-jobs/<job_id>/logs/public?tail=200` |
+| 로그 텍스트 | `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/v1/boltz2/prediction-jobs/<job_id>/logs/public/text?tail=50` |
+| 상태 조회 | `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/v1/boltz2/prediction-jobs/<job_id>/status/public` |
+
+`<job_id>`를 실제 잡 ID로 교체하여 사용합니다. `tail` 파라미터로 표시할 로그 줄 수를 조절할 수 있습니다.
+
+---
+
+## 이메일 알림
+
+잡 상태 변경(queued → running → succeeded/failed) 및 단계 전환 시 Gmail SMTP를 통해 자동으로 이메일 알림이 발송됩니다. 잡을 제출한 사용자의 등록 이메일로 발송되며, 별도 설정은 필요하지 않습니다.
 
 ---
 
@@ -350,7 +358,7 @@ sequences:
 | 증상 | 해결 방법 |
 |------|-----------|
 | `NOT_REGISTERED` | `claude mcp add boltz2 --transport http <URL>` 실행 |
-| OAuth 브라우저 안 열림 | 원격 환경이면 `--callback-port 9999` 추가 + 포트 포워딩 |
+| OAuth 브라우저 안 열림 | 원격 환경이면 Claude Code가 제공하는 URL을 로컬 브라우저에서 열어 인증 진행 |
 | 연결 타임아웃 | 서버 상태 확인: `curl https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/healthz` |
 
 ### 잡 실행 관련
@@ -358,9 +366,9 @@ sequences:
 | 증상 | 해결 방법 |
 |------|-----------|
 | `503 boltz2 binary not available` | 서버에 Boltz-2 바이너리 미설치. 관리자 문의 |
-| `429 Rate limit` | 일일 한도(20건) 또는 동시 실행 한도(2건) 초과. 대기 후 재시도 |
+| `429 Rate limit` | 일일 한도(20건) 또는 동시 실행 한도(5건) 초과. 대기 후 재시도 |
 | `boltz2_run_failed` | Boltz-2 실행 오류. `get_logs`로 상세 로그 확인 |
-| `boltz2_run_timeout` | 4시간 타임아웃 초과. 입력 크기 줄이거나 `diffusion_samples` 감소 |
+| `boltz2_run_timeout` | 타임아웃 발생 (현재 무제한 설정). 워커 상태 확인 필요 |
 | `worker_timeout` | 워커 heartbeat 없음. `list_workers`로 워커 상태 확인 |
 | Spec 검증 실패 | `validate_spec` 반환 `errors` 확인. 시퀀스 형식, 체인 ID 중복 등 점검 |
 

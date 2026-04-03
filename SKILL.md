@@ -1,6 +1,6 @@
 ---
 name: boltz2-predict
-version: 1.0.0
+version: 1.1.0
 description: |
   Boltz-2 단백질 구조 예측 자동화 스킬. 시퀀스 또는 구조 파일을 입력받아
   업로드 → spec 생성 → 검증 → 잡 제출 → 상태 추적까지 전체 워크플로를 자동화한다.
@@ -36,13 +36,6 @@ claude mcp add boltz2 --transport http https://boltz2-api.politebay-55ff119b.wes
 ```
 
 > **OAuth 2.1 인증**: HTTP 전송 모드를 사용하면 첫 연결 시 브라우저가 열리며 Google OAuth 로그인이 진행됩니다. `@shaperon.com` 계정으로 로그인하면 인증이 자동 완료됩니다.
-
-> **원격 환경 (SSH, Codespaces 등)**: 브라우저를 직접 열 수 없는 환경에서는 `--callback-port 9999`를 추가하고, 해당 포트를 로컬로 포워딩하세요:
-> ```bash
-> claude mcp add boltz2 --transport http \
->   https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/mcp/mcp \
->   --callback-port 9999
-> ```
 
 또는 로컬 stdio 모드 (개발용):
 ```bash
@@ -258,7 +251,7 @@ get_job(job_id="<job_id>")
 잡 제출 완료!
 - Job ID: abc-123-def
 - Status: queued → running 대기 중
-- 예상 소요시간: 구조 크기에 따라 10분~4시간
+- 예상 소요시간: 구조 크기에 따라 10분~수 시간 (타임아웃 없음)
 
 상태 확인: get_job(job_id="abc-123-def")
 결과 다운로드: get_artifacts(job_id="abc-123-def") (succeeded 후)
@@ -301,6 +294,18 @@ cancel_job(job_id)                            # 잡 취소
 list_templates()                              # 템플릿 목록
 list_workers()                                # 워커 상태
 ```
+
+### 공개 URL (인증 불필요)
+
+MCP 도구 대신 공개 URL로 로그와 상태를 확인할 수 있다. 브라우저에서 직접 열거나 외부 공유 시 활용:
+
+- 로그 스트리밍: `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/v1/boltz2/prediction-jobs/<job_id>/logs/public?tail=200`
+- 로그 텍스트: `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/v1/boltz2/prediction-jobs/<job_id>/logs/public/text?tail=50`
+- 상태 조회: `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io/v1/boltz2/prediction-jobs/<job_id>/status/public`
+
+### 이메일 알림
+
+잡 상태 변경(queued → running → succeeded/failed) 및 단계 전환 시 Gmail SMTP를 통해 자동으로 이메일 알림이 발송된다. 별도 설정 불필요.
 
 ## Boltz-2 YAML Spec 레퍼런스
 
@@ -386,11 +391,10 @@ boltz2 API KEY를 이미 발급받은 사용자는 동일한 로그인(`/auth/lo
 - **MCP 미등록**: `claude mcp add boltz2 --transport http <URL>` 실행
 - **503 boltz2 binary not available**: 서버에 boltz 바이너리가 설치되지 않음. 검증 불가.
 - **401 인증 실패**: API KEY 확인
-- **429 Rate limit**: 일일 한도(20) 또는 동시 한도(2) 초과
+- **429 Rate limit**: 일일 한도(20) 또는 동시 한도(5) 초과
 - **잡 실패**: `get_job`의 `failure_code` 확인
   - `boltz2_run_failed` — Boltz-2 실행 오류
-  - `boltz2_run_timeout` — 4시간 타임아웃 초과
-  - `worker_timeout` — 워커 heartbeat 없음
+  - `worker_timeout` — 워커 heartbeat 없음 (`list_workers`로 상태 확인)
 
 ## API 엔드포인트 (REST 직접 호출 시)
 
@@ -410,4 +414,7 @@ Base URL: `https://boltz2-api.politebay-55ff119b.westus3.azurecontainerapps.io`
 | GET | `/v1/boltz2/prediction-jobs/{id}` | 잡 상세 |
 | POST | `/v1/boltz2/prediction-jobs/{id}:cancel` | 잡 취소 |
 | GET | `/v1/boltz2/prediction-jobs/{id}/artifacts` | 결과 다운로드 |
+| GET | `/v1/boltz2/prediction-jobs/{id}/logs/public` | 공개 로그 스트리밍 (인증 불필요) |
+| GET | `/v1/boltz2/prediction-jobs/{id}/logs/public/text` | 공개 로그 텍스트 (인증 불필요) |
+| GET | `/v1/boltz2/prediction-jobs/{id}/status/public` | 공개 상태 조회 (인증 불필요) |
 | GET | `/docs` | Swagger UI |
